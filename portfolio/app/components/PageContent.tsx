@@ -1,13 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
 import { LangProvider, useLang } from "./LangContext";
 import Nav from "./Nav";
 
 const WaterShader = dynamic(() => import("./WaterShader"), {
   ssr: false,
 });
+
+const BASE_PATH = process.env.NODE_ENV === "production" ? "/ho-vinci" : "";
 
 // ─── i18n content ────────────────────────────────────────────────────────────
 const copy = {
@@ -81,80 +82,6 @@ const copy = {
     footerText: "© 2025 Hovinci. All rights reserved.",
   },
 };
-
-// ─── Section nav (vertical line) ─────────────────────────────────────────────
-
-const SECTIONS = ["top", "works", "note", "membership", "sns"] as const;
-
-function SectionNav() {
-  const [active, setActive] = useState<string>("top");
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActive(entry.target.id);
-          }
-        }
-      },
-      { threshold: 0.4 }
-    );
-    SECTIONS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observerRef.current!.observe(el);
-    });
-    return () => observerRef.current?.disconnect();
-  }, []);
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        right: "2rem",
-        top: "50%",
-        transform: "translateY(-50%)",
-        zIndex: 40,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 0,
-      }}
-    >
-      {/* 縦線 */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "1px",
-          background: "#333",
-        }}
-      />
-      {SECTIONS.map((id) => (
-        <a
-          key={id}
-          href={`#${id}`}
-          style={{
-            position: "relative",
-            zIndex: 1,
-            width: "8px",
-            height: "8px",
-            borderRadius: "50%",
-            background: active === id ? "#f5c518" : "#333",
-            margin: "12px 0",
-            display: "block",
-            transition: "background 0.3s",
-            flexShrink: 0,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
 // ─── Section components ───────────────────────────────────────────────────────
 
@@ -318,7 +245,7 @@ function Works() {
           desc={t.habitBirdDesc}
           link="https://habitbird.app/"
           linkLabel={t.habitBirdLink}
-          image={lang === "ja" ? "/works/habitbird-ja.png" : "/works/habitbird-en.png"}
+          image={`${BASE_PATH}/works/${lang === "ja" ? "habitbird-ja.png" : "habitbird-en.png"}`}
         />
       </div>
     </section>
@@ -404,14 +331,11 @@ function WorkCard({
             border: "1px solid #222",
           }}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image}
             alt={title}
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
-            }}
+            style={{ width: "100%", height: "auto", display: "block" }}
           />
         </div>
       )}
@@ -750,7 +674,6 @@ export default function PageContent() {
     <LangProvider>
       <div style={{ minHeight: "100vh", background: "#0a0a0a" }}>
         <Nav />
-        <SectionNav />
         <Hero />
         <Works />
         <NoteSection />

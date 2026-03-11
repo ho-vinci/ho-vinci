@@ -37,13 +37,15 @@ export default function WaterShader() {
 
       renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      renderer.setSize(mount!.clientWidth, mount!.clientHeight);
+      const initW = mount!.clientWidth || window.innerWidth;
+      const initH = mount!.clientHeight || window.innerHeight;
+      renderer.setSize(initW, initH);
       renderer.setClearColor(0x000000, 0);
       mount!.appendChild(renderer.domElement);
 
       const scene = new T.Scene();
-      const w = mount!.clientWidth;
-      const h = mount!.clientHeight;
+      const w = initW;
+      const h = initH;
       const aspect = w / h;
       const camera = new T.OrthographicCamera(
         -aspect * PLANE_SZ / 2, aspect * PLANE_SZ / 2,
@@ -169,8 +171,8 @@ export default function WaterShader() {
                 float h      = vHeight;
                 float crest  = pow(max(h, 0.0), 1.4) * 1.8;
                 float trough = pow(max(-h, 0.0), 1.4) * 0.6;
-                vec3 hi  = vec3(0.28, 0.33, 0.37);
-                vec3 bright = vec3(0.72, 0.80, 0.85);
+                vec3 hi  = vec3(0.08, 0.10, 0.12);
+                vec3 bright = vec3(0.40, 0.48, 0.55);
                 vec3 col = hi * (fresnel * 1.10 + spec * 2.0 + spec2 * 1.6)
                          + mix(hi, bright, crest) * crest
                          - hi * trough;
