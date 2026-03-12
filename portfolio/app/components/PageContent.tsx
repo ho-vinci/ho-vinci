@@ -15,7 +15,7 @@ const copy = {
   ja: {
     heroDesc: "毎日つくる。書く、描く、築く。",
 
-    worksTitle: "作品",
+    writingTitle: "文筆",
     kindle100Title: "100日で100冊Kindle出版",
     kindle100Desc:
       "100日間でKindle本を100冊出版するという前人未到のチャレンジ。その記録と戦略をnoteで公開しています。",
@@ -24,15 +24,18 @@ const copy = {
     kindleListDesc:
       "Amazonで出版したKindle本の全ラインナップ。ビジネス・自己啓発・ライフスタイルなど幅広いジャンル。",
     kindleListLink: "Amazonで見る →",
+    dailyNoteTitle: "毎日note",
+    dailyNoteDesc:
+      "1500日以上、一日も欠かさずnoteを更新し続けています。思考・創作・人生について毎日発信。",
+    dailyNoteLink: "noteを読む →",
+
+    appsTitle: "アプリ",
     habitBirdTitle: "HabitBird",
     habitBirdDesc:
       "ハビットバードは、毎日の習慣をかわいいひよこで可視化する習慣トラッカーです。プロジェクトごとに習慣を管理し、目標達成を楽しくサポートします。",
     habitBirdLink: "アプリを見る →",
-
-    noteTitle: "毎日note",
-    noteDesc:
-      "1500日以上、一日も欠かさずnoteを更新し続けています。思考・創作・人生について毎日発信。",
-    noteLink: "noteを読む →",
+    comingSoonTitle: "Coming Soon",
+    comingSoonDesc: "新しいアプリを開発中です。お楽しみに。",
 
     membershipTitle: "メンバーシップ",
     membershipSubtitle: "ストーリーハッカー",
@@ -49,7 +52,7 @@ const copy = {
   en: {
     heroDesc: "Build every day. Write, Draw, Code.",
 
-    worksTitle: "Works",
+    writingTitle: "Writing",
     kindle100Title: "100 Kindle Books in 100 Days",
     kindle100Desc:
       "An unprecedented challenge of publishing 100 Kindle books in 100 days. Records and strategies published on note.",
@@ -58,25 +61,28 @@ const copy = {
     kindleListDesc:
       "Full lineup of Kindle books published on Amazon — business, self-improvement, lifestyle and more.",
     kindleListLink: "View on Amazon →",
+    dailyNoteTitle: "Daily note",
+    dailyNoteDesc:
+      "Over 1,500 consecutive days of posting on note — sharing thoughts on creativity, writing, and life.",
+    dailyNoteLink: "Read on note →",
+
+    appsTitle: "Apps",
     habitBirdTitle: "HabitBird",
     habitBirdDesc:
       "HabitBird is a habit tracker that visualizes your daily habits with cute chicks. Manage habits by project and make achieving your goals fun.",
     habitBirdLink: "View app →",
-
-    noteTitle: "Daily note",
-    noteDesc:
-      "Over 1,500 consecutive days of posting on note — sharing thoughts on creativity, writing, and life.",
-    noteLink: "Read on note →",
+    comingSoonTitle: "Coming Soon",
+    comingSoonDesc: "A new app is in development. Stay tuned.",
 
     membershipTitle: "Membership",
     membershipSubtitle: "Story Hacker",
     membershipDesc:
-      "A community for creators who use the power of story to transform their lives. Deep dives into writing craft and mental models.",
+      "A note membership community for creators who use the power of story to transform their lives. A place to go deep into writing craft and mental models.",
     membershipLink: "Join now →",
 
     snsTitle: "SNS",
     threadsDesc:
-      "Daily thoughts, reading logs, and behind-the-scenes of my creative process on Threads.",
+      "An account for writing fiction and changing your life. Daily hints to get 1% closer to becoming someone who creates stories.",
     threadsLink: "Follow →",
 
     footerText: "© 2025 Hovinci. All rights reserved.",
@@ -188,13 +194,13 @@ function Hero() {
   );
 }
 
-function Works() {
+function Writing() {
   const { lang } = useLang();
   const t = copy[lang];
 
   return (
     <section
-      id="works"
+      id="writing"
       style={{
         padding: "8rem 2rem",
         maxWidth: "1200px",
@@ -211,7 +217,7 @@ function Works() {
           marginBottom: "5rem",
         }}
       >
-        {t.worksTitle}
+        {t.writingTitle}
         <span style={{ color: "#f5c518" }}>.</span>
       </h2>
 
@@ -222,7 +228,6 @@ function Works() {
           gap: "2px",
         }}
       >
-        {/* Card 1 */}
         <WorkCard
           number="01"
           title={t.kindle100Title}
@@ -230,7 +235,6 @@ function Works() {
           link="https://note.com/hovinci/n/n39f518d337f6"
           linkLabel={t.kindle100Link}
         />
-        {/* Card 2 */}
         <WorkCard
           number="02"
           title={t.kindleListTitle}
@@ -238,15 +242,63 @@ function Works() {
           link="https://www.amazon.co.jp/stores/%E3%83%9B%E3%83%B4%E3%82%A3%E3%83%B3%E3%83%81/author/B0DT3MZR3F?shoppingPortalEnabled=true"
           linkLabel={t.kindleListLink}
         />
-        {/* Card 3 */}
         <WorkCard
           number="03"
+          title={t.dailyNoteTitle}
+          desc={t.dailyNoteDesc}
+          link="https://note.com/hovinci"
+          linkLabel={t.dailyNoteLink}
+        />
+      </div>
+    </section>
+  );
+}
+
+function Apps() {
+  const { lang } = useLang();
+  const t = copy[lang];
+
+  return (
+    <section
+      id="apps"
+      style={{
+        padding: "8rem 2rem",
+        maxWidth: "1200px",
+        margin: "0 auto",
+        borderTop: "1px solid #222",
+      }}
+    >
+      <h2
+        style={{
+          fontSize: "clamp(2.5rem, 6vw, 5rem)",
+          fontWeight: 900,
+          letterSpacing: "-0.04em",
+          lineHeight: 1,
+          color: "#f5f5f5",
+          marginBottom: "5rem",
+        }}
+      >
+        {t.appsTitle}
+        <span style={{ color: "#f5c518" }}>.</span>
+      </h2>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: "2px",
+        }}
+      >
+        <WorkCard
+          number="01"
           title={t.habitBirdTitle}
           desc={t.habitBirdDesc}
           link="https://habitbird.app/"
           linkLabel={t.habitBirdLink}
           image={`${BASE_PATH}/works/${lang === "ja" ? "habitbird-ja.png" : "habitbird-en.png"}`}
         />
+        {/* Coming Soon カード（リンクなし） */}
+        <ComingSoonCard number="02" title={t.comingSoonTitle} desc={t.comingSoonDesc} />
       </div>
     </section>
   );
@@ -353,113 +405,59 @@ function WorkCard({
   );
 }
 
-function NoteSection() {
-  const { lang } = useLang();
-  const t = copy[lang];
-
+function ComingSoonCard({
+  number,
+  title,
+  desc,
+}: {
+  number: string;
+  title: string;
+  desc: string;
+}) {
   return (
-    <section
-      id="note"
+    <div
       style={{
-        padding: "8rem 2rem",
+        display: "block",
+        padding: "3rem 2.5rem",
+        background: "#111",
         borderTop: "1px solid #222",
+        opacity: 0.5,
       }}
     >
-      <div
+      <span
         style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "4rem",
-          alignItems: "center",
+          fontSize: "0.6875rem",
+          letterSpacing: "0.15em",
+          color: "#f5c518",
+          fontWeight: 700,
+          display: "block",
+          marginBottom: "1.5rem",
         }}
       >
-        <div>
-          <h2
-            style={{
-              fontSize: "clamp(2rem, 5vw, 4rem)",
-              fontWeight: 900,
-              letterSpacing: "-0.04em",
-              lineHeight: 1,
-              color: "#f5f5f5",
-              marginBottom: "2rem",
-            }}
-          >
-            {t.noteTitle}
-            <span style={{ color: "#f5c518" }}>.</span>
-          </h2>
-          <p style={{ fontSize: "1rem", color: "#888", lineHeight: 1.8, marginBottom: "2.5rem" }}>
-            {t.noteDesc}
-          </p>
-          <a
-            href="https://note.com/hovinci"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-block",
-              padding: "0.875rem 2rem",
-              background: "#f5c518",
-              color: "#000",
-              fontWeight: 900,
-              fontSize: "0.875rem",
-              letterSpacing: "0.05em",
-              textDecoration: "none",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={e =>
-              ((e.currentTarget as HTMLAnchorElement).style.background = "#e6b800")
-            }
-            onMouseLeave={e =>
-              ((e.currentTarget as HTMLAnchorElement).style.background = "#f5c518")
-            }
-          >
-            {t.noteLink}
-          </a>
-        </div>
-        <div
-          style={{
-            position: "relative",
-            height: "320px",
-            background: "#111",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "6rem",
-                fontWeight: 900,
-                color: "#f5c518",
-                lineHeight: 1,
-                opacity: 0.15,
-                letterSpacing: "-0.05em",
-              }}
-            >
-              1500+
-            </div>
-            <div
-              style={{
-                fontSize: "0.875rem",
-                color: "#888",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                marginTop: "-1rem",
-              }}
-            >
-              days
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+        {number}
+      </span>
+      <h3
+        style={{
+          fontSize: "1.5rem",
+          fontWeight: 900,
+          letterSpacing: "-0.02em",
+          color: "#f5f5f5",
+          marginBottom: "1rem",
+          lineHeight: 1.2,
+        }}
+      >
+        {title}
+      </h3>
+      <p
+        style={{
+          fontSize: "0.9375rem",
+          color: "#888",
+          lineHeight: 1.7,
+        }}
+      >
+        {desc}
+      </p>
+    </div>
   );
 }
 
@@ -675,8 +673,8 @@ export default function PageContent() {
       <div style={{ minHeight: "100vh", background: "#0a0a0a" }}>
         <Nav />
         <Hero />
-        <Works />
-        <NoteSection />
+        <Writing />
+        <Apps />
         <Membership />
         <SNS />
         <Footer />

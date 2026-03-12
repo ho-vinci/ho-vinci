@@ -37,11 +37,17 @@ export default function WaterShader() {
 
       renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      const initW = mount!.clientWidth || window.innerWidth;
-      const initH = mount!.clientHeight || window.innerHeight;
+      const initW = window.innerWidth;
+      const initH = window.innerHeight;
       renderer.setSize(initW, initH);
       renderer.setClearColor(0x000000, 0);
-      mount!.appendChild(renderer.domElement);
+      const canvas = renderer.domElement;
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      mount!.appendChild(canvas);
 
       const scene = new T.Scene();
       const w = initW;
@@ -231,8 +237,8 @@ export default function WaterShader() {
 
       const onResize = () => {
         if (!mount || !renderer) return;
-        const nw = mount.clientWidth;
-        const nh = mount.clientHeight;
+        const nw = window.innerWidth;
+        const nh = window.innerHeight;
         const na = nw / nh;
         camera.left   = -na * PLANE_SZ / 2;
         camera.right  =  na * PLANE_SZ / 2;

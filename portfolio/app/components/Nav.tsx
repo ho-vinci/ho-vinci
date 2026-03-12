@@ -3,8 +3,8 @@
 import { useLang } from "./LangContext";
 
 const labels = {
-  ja: { works: "作品", note: "note", membership: "メンバーシップ", sns: "SNS" },
-  en: { works: "Works", note: "Note", membership: "Membership", sns: "SNS" },
+  ja: { writing: "文筆", apps: "アプリ", membership: "メンバーシップ", sns: "SNS" },
+  en: { writing: "Writing", apps: "Apps", membership: "Membership", sns: "SNS" },
 };
 
 export default function Nav() {
@@ -40,17 +40,17 @@ export default function Nav() {
       </a>
 
       <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
-        <a href="#works" style={{ fontSize: "0.875rem", color: "#888", transition: "color 0.2s" }}
+        <a href="#writing" style={{ fontSize: "0.875rem", color: "#888", transition: "color 0.2s" }}
           onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
           onMouseLeave={e => (e.currentTarget.style.color = "#888")}
         >
-          {t.works}
+          {t.writing}
         </a>
-        <a href="#note" style={{ fontSize: "0.875rem", color: "#888", transition: "color 0.2s" }}
+        <a href="#apps" style={{ fontSize: "0.875rem", color: "#888", transition: "color 0.2s" }}
           onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
           onMouseLeave={e => (e.currentTarget.style.color = "#888")}
         >
-          {t.note}
+          {t.apps}
         </a>
         <a href="#membership" style={{ fontSize: "0.875rem", color: "#888", transition: "color 0.2s" }}
           onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
