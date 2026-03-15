@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-// three.js is loaded via CDN at runtime
+// three.js は CDN から実行時にロード
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ThreeLib = any;
 
@@ -31,22 +31,22 @@ export default function WaterShader() {
     document.head.appendChild(script);
 
     function init(T: ThreeLib) {
-      const SIM_RES = 1024;
-      const PLANE_SZ = 22;
-      const SUBSTEPS = 4;
-
-      // WebGL非対応デバイスへの安全なフォールバック
+      // WebGL 非対応デバイスへの安全なフォールバック
       try {
-        renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+        renderer = new T.WebGLRenderer({ antialias: false, alpha: true });
       } catch {
         return;
       }
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      // window.innerWidth/Height を使うことで、DOMサイズに依存せず常に全幅を取得する
+
+      // モバイルではピクセル比を 1 に抑えてパフォーマンスを確保
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2));
+
       const initW = window.innerWidth;
       const initH = window.innerHeight;
       renderer.setSize(initW, initH, false);
       renderer.setClearColor(0x000000, 0);
+
       const canvas = renderer.domElement;
       canvas.style.position = "absolute";
       canvas.style.top = "0";
@@ -56,273 +56,231 @@ export default function WaterShader() {
       mount!.appendChild(canvas);
 
       const scene = new T.Scene();
-      const aspect = initW / initH;
-      const halfW = PLANE_SZ / 2;
-      const halfH = halfW / aspect;
-      const camera = new T.OrthographicCamera(
-        -halfW, halfW,
-        halfH, -halfH,
-        0.1, 200
-      );
-      camera.position.set(0, 50, 0);
-      camera.lookAt(0, 0, 0);
+      const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-      const simCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-      const simScene = new T.Scene();
+      // タッチ/クリックで波を起こせるよう、インタラクション座標を保持
+      const interactionPoints: Array<{ u: number; v: number; t: number }> = [];
+      const clock = new T.Clock();
 
-      // モバイルブラウザはFloatTypeに非対応なことがあるため、
-      // OES_texture_half_float拡張が使えない場合はHalfFloatTypeへフォールバック
-      const gl = renderer.getContext();
-      const supportsFloat = gl.getExtension("OES_texture_float")
-        || gl.getExtension("EXT_color_buffer_float");
-      const texType = supportsFloat ? T.FloatType : T.HalfFloatType;
-
-      const rtOpts = {
-        minFilter: T.NearestFilter,
-        magFilter: T.LinearFilter,
-        format: T.RGBAFormat,
-        type: texType,
-        depthBuffer: false,
-        stencilBuffer: false,
-      };
-      let ping = new T.WebGLRenderTarget(SIM_RES, SIM_RES, rtOpts);
-      let pong = ping.clone();
-
-      const simUniforms = {
-        uState: { value: null },
-        uTexel: { value: new T.Vector2(1 / SIM_RES, 1 / SIM_RES) },
-        uMouse: { value: new T.Vector2(-1, -1) },
-        uImpulse: { value: 0 },
+      // ── シェーダーユニフォーム ──────────────────────────────────────
+      // RenderTarget を一切使わず、フラグメントシェーダーだけで波を描画。
+      // モバイルの WebGL 実装差異（FloatType 非対応など）を回避できる。
+      const uniforms = {
+        uTime:       { value: 0.0 },
+        uResolution: { value: new T.Vector2(initW, initH) },
+        // タッチ/クリック波: 最大4点を保持
+        uHitUV:  { value: [
+          new T.Vector2(-1, -1),
+          new T.Vector2(-1, -1),
+          new T.Vector2(-1, -1),
+          new T.Vector2(-1, -1),
+        ]},
+        uHitTime: { value: new T.Vector4(-999, -999, -999, -999) },
       };
 
-      simScene.add(
-        new T.Mesh(
-          new T.PlaneGeometry(2, 2),
-          new T.ShaderMaterial({
-            uniforms: simUniforms,
-            vertexShader: `
-              varying vec2 vUv;
-              void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }
-            `,
-            fragmentShader: `
-              precision highp float;
-              uniform sampler2D uState;
-              uniform vec2      uTexel;
-              uniform vec2      uMouse;
-              uniform float     uImpulse;
-              varying vec2 vUv;
-              void main() {
-                float curr = texture2D(uState, vUv).r;
-                float prev = texture2D(uState, vUv).g;
-                float n = texture2D(uState, vUv + vec2(0., uTexel.y)).r;
-                float s = texture2D(uState, vUv - vec2(0., uTexel.y)).r;
-                float e = texture2D(uState, vUv + vec2(uTexel.x, 0.)).r;
-                float w = texture2D(uState, vUv - vec2(uTexel.x, 0.)).r;
-                float lap  = n + s + e + w - 4.0 * curr;
-                float c    = 0.50;
-                float next = 2.0 * curr - prev + c * c * lap;
-                next *= 0.9955;
-                next  = clamp(next, -1., 1.);
-                if (uImpulse > 0.001) {
-                  float d = length(vUv - uMouse);
-                  next -= uImpulse * exp(-d * d * 7000.0);
-                  next  = clamp(next, -1., 1.);
-                }
-                gl_FragColor = vec4(next, curr, 0., 1.);
-              }
-            `,
-          })
-        )
-      );
+      const vertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `;
 
-      const dispUniforms = {
-        uHeightMap: { value: null },
-        uTexel: { value: new T.Vector2(1 / SIM_RES, 1 / SIM_RES) },
-        uDispScale: { value: 0.44 },
-      };
+      // precision は mediump でモバイル互換性を確保
+      const fragmentShader = `
+        precision mediump float;
 
-      const waterGeo = new T.PlaneGeometry(PLANE_SZ, PLANE_SZ, 480, 480);
-      waterGeo.rotateX(-Math.PI / 2);
+        uniform float     uTime;
+        uniform vec2      uResolution;
+        uniform vec2      uHitUV[4];
+        uniform vec4      uHitTime;
+
+        varying vec2 vUv;
+
+        // ─── 擬似乱数 ───────────────────────────────────────────────
+        float rand(vec2 co) {
+          return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+
+        // ─── 1点からの円形波 ──────────────────────────────────────
+        float ripple(vec2 uv, vec2 center, float startT, float t) {
+          float age    = t - startT;
+          if (age < 0.0 || age > 4.5) return 0.0;
+          float dist   = length(uv - center);
+          // 波の速度・減衰・周波数
+          float speed  = 0.22;
+          float freq   = 18.0;
+          float damp   = exp(-age * 1.2) * exp(-dist * 4.5);
+          float wave   = sin((dist - age * speed) * freq) * damp;
+          return wave;
+        }
+
+        // ─── 環境波（ランダム発生 + 定常うねり） ─────────────────
+        float ambientWaves(vec2 uv, float t) {
+          float h = 0.0;
+
+          // 低速なうねり（複数方向の sin 合成）
+          h += sin(uv.x * 4.2 + t * 0.40) * cos(uv.y * 3.7 + t * 0.33) * 0.030;
+          h += sin(uv.x * 7.1 - t * 0.55 + uv.y * 2.3) * 0.018;
+          h += cos(uv.x * 2.8 + uv.y * 5.5 + t * 0.28) * 0.022;
+          h += sin(uv.x * 11.0 + t * 0.70) * cos(uv.y * 9.0 - t * 0.60) * 0.010;
+
+          // ランダム発生リップル（シード値で位置と時間をばらす）
+          for (int i = 0; i < 6; i++) {
+            float fi   = float(i);
+            float seed = fi * 137.508;
+            float cx   = rand(vec2(seed, 0.1)) * 0.8 + 0.1;
+            float cy   = rand(vec2(seed, 0.2)) * 0.8 + 0.1;
+            // 各リップルは 5.5 秒周期でリセット
+            float period = 5.5;
+            float offset = rand(vec2(seed, 0.3)) * period;
+            float lt     = mod(t + offset, period);
+            h += ripple(uv, vec2(cx, cy), 0.0, lt) * 0.35;
+          }
+
+          return h;
+        }
+
+        // ─── 法線からライティング ─────────────────────────────────
+        vec3 waterColor(vec2 uv, float h, float hE, float hN) {
+          float dX = (hE - h) * 28.0;
+          float dZ = (hN - h) * 28.0;
+          vec3 normal = normalize(vec3(-dX, 1.0, dZ));
+
+          vec3 V = vec3(0.0, 1.0, 0.0);
+          vec3 L = normalize(vec3(0.3, 1.0, 0.5));
+          float NdotV  = max(dot(normal, V), 0.0);
+          float fresnel = pow(1.0 - NdotV, 4.5);
+          vec3 H  = normalize(L + V);
+          float spec  = pow(max(dot(normal, H), 0.0), 30.0) * 0.50;
+          vec3 L2 = normalize(vec3(-0.4, 0.8, -0.3));
+          vec3 H2 = normalize(L2 + V);
+          float spec2 = pow(max(dot(normal, H2), 0.0), 15.0) * 0.18;
+          float crest  = pow(max( h, 0.0), 1.4) * 1.8;
+          float trough = pow(max(-h, 0.0), 1.4) * 0.6;
+          vec3 hi     = vec3(0.08, 0.10, 0.12);
+          vec3 bright = vec3(0.40, 0.48, 0.55);
+          vec3 col = hi * (fresnel * 1.10 + spec * 2.0 + spec2 * 1.6)
+                   + mix(hi, bright, crest) * crest
+                   - hi * trough;
+          return col;
+        }
+
+        void main() {
+          vec2 uv = vUv;
+          float t  = uTime;
+          float eps = 1.0 / min(uResolution.x, uResolution.y);
+
+          float h  = ambientWaves(uv, t);
+          float hE = ambientWaves(uv + vec2(eps, 0.0), t);
+          float hN = ambientWaves(uv + vec2(0.0, eps), t);
+
+          // タッチ/クリック波を重ねる
+          float hitTimes[4];
+          hitTimes[0] = uHitTime.x;
+          hitTimes[1] = uHitTime.y;
+          hitTimes[2] = uHitTime.z;
+          hitTimes[3] = uHitTime.w;
+          for (int i = 0; i < 4; i++) {
+            float r  = ripple(uv, uHitUV[i], hitTimes[i], t);
+            float rE = ripple(uv + vec2(eps,0.), uHitUV[i], hitTimes[i], t);
+            float rN = ripple(uv + vec2(0.,eps), uHitUV[i], hitTimes[i], t);
+            h  += r  * 0.6;
+            hE += rE * 0.6;
+            hN += rN * 0.6;
+          }
+
+          vec3 col = waterColor(uv, h, hE, hN);
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `;
 
       scene.add(
         new T.Mesh(
-          waterGeo,
-          new T.ShaderMaterial({
-            uniforms: dispUniforms,
-            vertexShader: `
-              precision highp float;
-              uniform sampler2D uHeightMap;
-              uniform vec2      uTexel;
-              uniform float     uDispScale;
-              varying vec2  vUv;
-              varying vec3  vNormal;
-              varying float vHeight;
-              void main() {
-                vUv = uv;
-                float h  = texture2D(uHeightMap, uv).r;
-                float hE = texture2D(uHeightMap, uv + vec2(uTexel.x, 0.)).r;
-                float hN = texture2D(uHeightMap, uv + vec2(0., uTexel.y)).r;
-                vHeight  = h;
-                float scale = uDispScale * 55.0;
-                float dX    = (hE - h) * scale;
-                float dZ    = (hN - h) * scale;
-                vNormal     = normalize(vec3(-dX, 1.0, dZ));
-                vec3 pos = position;
-                pos.y   += h * uDispScale;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-              }
-            `,
-            fragmentShader: `
-              precision highp float;
-              varying vec2  vUv;
-              varying vec3  vNormal;
-              varying float vHeight;
-              void main() {
-                vec3 V = normalize(vec3(0.0, 1.0, 0.0));
-                vec3 L = normalize(vec3(0.3, 1.0, 0.5));
-                float NdotV  = max(dot(vNormal, vec3(0.,1.,0.)), 0.0);
-                float fresnel = pow(1.0 - NdotV, 4.5);
-                vec3  H    = normalize(L + V);
-                float spec = pow(max(dot(vNormal, H), 0.0), 30.0) * 0.50;
-                vec3  L2   = normalize(vec3(-0.4, 0.8, -0.3));
-                vec3  H2   = normalize(L2 + V);
-                float spec2= pow(max(dot(vNormal, H2), 0.0), 15.0) * 0.18;
-                float h      = vHeight;
-                float crest  = pow(max(h, 0.0), 1.4) * 1.8;
-                float trough = pow(max(-h, 0.0), 1.4) * 0.6;
-                vec3 hi  = vec3(0.08, 0.10, 0.12);
-                vec3 bright = vec3(0.40, 0.48, 0.55);
-                vec3 col = hi * (fresnel * 1.10 + spec * 2.0 + spec2 * 1.6)
-                         + mix(hi, bright, crest) * crest
-                         - hi * trough;
-                gl_FragColor = vec4(col, 1.0);
-              }
-            `,
-          })
+          new T.PlaneGeometry(2, 2),
+          new T.ShaderMaterial({ uniforms, vertexShader, fragmentShader })
         )
       );
 
-      const raycaster = new T.Raycaster();
-      const ndcMouse = new T.Vector2();
-      const wPlane = new T.Plane(new T.Vector3(0, 1, 0), 0);
-      const hitPt = new T.Vector3();
-      let impulse = 0;
-      let lastSpawnT = -1;
-      const clock = new T.Clock();
+      // ─── インタラクション（タッチ / クリック） ──────────────────
+      let hitIdx = 0;
 
-      function inject(cx: number, cy: number) {
+      function addHit(u: number, v: number) {
         const t = clock.getElapsedTime();
-        if (t - lastSpawnT < 0.016) return;
-        lastSpawnT = t;
-        const w = mount!.clientWidth;
-        const h = mount!.clientHeight;
-        ndcMouse.set((cx / w) * 2 - 1, -(cy / h) * 2 + 1);
-        raycaster.setFromCamera(ndcMouse, camera);
-        if (raycaster.ray.intersectPlane(wPlane, hitPt)) {
-          const u = (hitPt.x + PLANE_SZ / 2) / PLANE_SZ;
-          const v = (-hitPt.z + PLANE_SZ / 2) / PLANE_SZ;
-          if (u > 0 && u < 1 && v > 0 && v < 1) {
-            simUniforms.uMouse.value.set(u, v);
-            impulse = 0.35;
-          }
-        }
+        uniforms.uHitUV.value[hitIdx].set(u, v);
+        const arr = [
+          uniforms.uHitTime.value.x,
+          uniforms.uHitTime.value.y,
+          uniforms.uHitTime.value.z,
+          uniforms.uHitTime.value.w,
+        ];
+        arr[hitIdx] = t;
+        uniforms.uHitTime.value.set(...(arr as [number, number, number, number]));
+        hitIdx = (hitIdx + 1) % 4;
+        interactionPoints.push({ u, v, t });
       }
 
-      const onMouseMove = (e: MouseEvent) => {
+      const onTouch = (e: TouchEvent) => {
         const rect = mount!.getBoundingClientRect();
-        inject(e.clientX - rect.left, e.clientY - rect.top);
+        Array.from(e.touches).forEach(touch => {
+          const u = (touch.clientX - rect.left) / rect.width;
+          const v = 1 - (touch.clientY - rect.top) / rect.height;
+          addHit(u, v);
+        });
       };
       const onClick = (e: MouseEvent) => {
         const rect = mount!.getBoundingClientRect();
-        inject(e.clientX - rect.left, e.clientY - rect.top);
+        addHit(
+          (e.clientX - rect.left) / rect.width,
+          1 - (e.clientY - rect.top) / rect.height
+        );
       };
-      const onTouch = (e: TouchEvent) => {
+      const onMouseMove = (e: MouseEvent) => {
         const rect = mount!.getBoundingClientRect();
-        inject(
-          e.touches[0].clientX - rect.left,
-          e.touches[0].clientY - rect.top
+        addHit(
+          (e.clientX - rect.left) / rect.width,
+          1 - (e.clientY - rect.top) / rect.height
         );
       };
 
-      mount!.addEventListener("mousemove", onMouseMove);
+      mount!.addEventListener("touchstart", onTouch, { passive: true });
+      mount!.addEventListener("touchmove",  onTouch, { passive: true });
       mount!.addEventListener("click", onClick);
-      mount!.addEventListener("touchmove", onTouch, { passive: true });
+      mount!.addEventListener("mousemove", onMouseMove);
 
+      // ─── リサイズ ────────────────────────────────────────────────
       const onResize = () => {
         if (!mount || !renderer) return;
         const nw = window.innerWidth;
         const nh = window.innerHeight;
-        const na = nw / nh;
-        // 縦縮小で画面が横長になっても波が画面を埋めるよう、
-        // アスペクト比に応じてカメラ高さも拡縮する（水平方向を常に固定幅でカバー）
-        const halfW = PLANE_SZ / 2;
-        const halfH = halfW / na;
-        camera.left   = -halfW;
-        camera.right  =  halfW;
-        camera.top    =  halfH;
-        camera.bottom = -halfH;
-        camera.updateProjectionMatrix();
         renderer.setSize(nw, nh, false);
-        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        uniforms.uResolution.value.set(nw, nh);
       };
       window.addEventListener("resize", onResize);
-
-      // ResizeObserver でコンテナサイズの変化を監視し、常に全幅表示を維持する
       const resizeObserver = new ResizeObserver(() => onResize());
-      const mountEl: HTMLDivElement = mount!;
-      if (mountEl.parentElement) resizeObserver.observe(mountEl.parentElement);
-      resizeObserver.observe(mountEl);
+      if (mount!.parentElement) resizeObserver.observe(mount!.parentElement);
+      resizeObserver.observe(mount!);
 
-      let nextAmbient = 1.8;
-      function spawnAmbient(t: number) {
-        if (t > nextAmbient) {
-          const u = 0.15 + Math.random() * 0.7;
-          const v = 0.15 + Math.random() * 0.7;
-          simUniforms.uMouse.value.set(u, v);
-          impulse = 0.45;
-          nextAmbient = t + 2.5 + Math.random() * 3.0;
-        }
-      }
-
+      // ─── アニメーションループ ────────────────────────────────────
       function animate() {
         if (cleanup) return;
         animId = requestAnimationFrame(animate);
-        const t = clock.getElapsedTime();
-        spawnAmbient(t);
-
-        for (let i = 0; i < SUBSTEPS; i++) {
-          simUniforms.uState.value = ping.texture;
-          simUniforms.uImpulse.value = i === 0 ? impulse : 0.0;
-          renderer.setRenderTarget(pong);
-          renderer.render(simScene, simCam);
-          renderer.setRenderTarget(null);
-          const tmp = ping;
-          ping = pong;
-          pong = tmp;
-        }
-        impulse *= 0.55;
-        dispUniforms.uHeightMap.value = ping.texture;
+        uniforms.uTime.value = clock.getElapsedTime();
         renderer.render(scene, camera);
       }
-
       animate();
-
-      // 1フレーム待ってからリサイズを実行し、確実にDOMサイズを反映する
       requestAnimationFrame(onResize);
 
-      // Store cleanup fn on the DOM node
-      (
-        mount as HTMLDivElement & { _wCleanup?: () => void }
-      )._wCleanup = () => {
+      // クリーンアップ関数を DOM ノードに格納
+      (mount as HTMLDivElement & { _wCleanup?: () => void })._wCleanup = () => {
         cancelAnimationFrame(animId);
-        mount!.removeEventListener("mousemove", onMouseMove);
+        mount!.removeEventListener("touchstart", onTouch);
+        mount!.removeEventListener("touchmove",  onTouch);
         mount!.removeEventListener("click", onClick);
-        mount!.removeEventListener("touchmove", onTouch);
+        mount!.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("resize", onResize);
         resizeObserver.disconnect();
         renderer.dispose();
-        ping.dispose();
-        pong.dispose();
       };
     }
 
